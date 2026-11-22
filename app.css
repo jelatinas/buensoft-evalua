@@ -155,6 +155,8 @@ input {
 .status.pending { background: #d7e6f5; color: #1c4e7a; }
 .status.progress { background: #f8e3cc; color: #8a4b16; }
 .status.done { background: #1b4332; color: #f6f3ea; }
+#answers-block { display: grid; gap: 12px; }
+#answers-block h3 { font-size: 22px; }
 .answer {
   display: grid;
   gap: 6px;

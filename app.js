@@ -124,7 +124,7 @@ function showBanner(text, kind) {
 
 function friendlyError(error) {
   if (/could not find the function|schema cache|PGRST202/i.test(error.message || "")) {
-    return "Falta aplicar la actualización de la base. Pega online/007_portal_ui.sql en el editor SQL de Supabase y vuelve a cargar.";
+    return "Falta aplicar la actualización de la base. Pega el archivo SQL nuevo en el editor de Supabase y vuelve a cargar.";
   }
   return error.message;
 }
@@ -312,7 +312,7 @@ function subjectPayload(text) {
   }
 }
 
-function openSubject(id) {
+async function openSubject(id) {
   subjectId = id;
   const item = subjects.find((subject) => subject.id === id);
   if (!item) return;
@@ -330,7 +330,45 @@ function openSubject(id) {
   const finished = item.question_count > 0 && item.learned >= item.question_count;
   start.disabled = finished;
   start.textContent = finished ? "Materia completada" : "Comenzar examen";
+  const answersBlock = document.getElementById("answers-block");
+  const answers = document.getElementById("answers");
+  answers.innerHTML = "";
+  answersBlock.hidden = true;
   show("subject");
+  if (!finished) return;
+  try {
+    const rows = await rpc("subject_answers", {
+      p_student_id: student.id,
+      p_subject_id: id
+    });
+    renderAnswers(Array.isArray(rows) ? rows : []);
+  } catch (error) {
+    banner.hidden = false;
+    banner.className = "banner bad";
+    banner.textContent = friendlyError(error);
+  }
+}
+
+function renderAnswers(rows) {
+  const answersBlock = document.getElementById("answers-block");
+  const answers = document.getElementById("answers");
+  answers.innerHTML = "";
+  answersBlock.hidden = rows.length === 0;
+  rows.forEach((item, index) => {
+    const row = document.createElement("article");
+    row.className = "answer";
+    const prompt = document.createElement("p");
+    prompt.textContent = `${index + 1}. ${item.prompt}`;
+    const answer = document.createElement("p");
+    const label = document.createElement("span");
+    label.className = "muted";
+    label.textContent = "Respuesta correcta: ";
+    const value = document.createElement("strong");
+    value.textContent = item.answer;
+    answer.append(label, value);
+    row.append(prompt, answer);
+    answers.appendChild(row);
+  });
 }
 
 function renderQuestion() {
@@ -551,7 +589,7 @@ document.getElementById("leave-confirm").addEventListener("click", async () => {
 document.getElementById("result-menu").addEventListener("click", () => loadPortal());
 document.getElementById("result-back").addEventListener("click", async () => {
   await loadPortal();
-  openSubject(subjectId);
+  await openSubject(subjectId);
 });
 document.getElementById("remove-confirm").addEventListener("click", async () => {
   const dialog = document.getElementById("remove-subject");
@@ -623,7 +661,7 @@ window.addEventListener("resize", equalizeSubjectCards);
 document.getElementById("result-again").addEventListener("click", () => {
   startExam().catch(async (error) => {
     await loadPortal();
-    openSubject(subjectId);
+    await openSubject(subjectId);
     const banner = document.getElementById("subject-banner");
     banner.hidden = false;
     banner.textContent = error.message;
