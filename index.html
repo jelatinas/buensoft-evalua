@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Buensoft Evalua</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main id="app">
+    <section id="home" class="home">
+      <aside class="brand">
+        <p class="mark">BE</p>
+        <h1>Buensoft Evalua</h1>
+        <p>Aprende, practica y comprueba lo que ya dominas. Cada estudiante conserva su propio avance.</p>
+        <ul>
+          <li>Una pregunta se aprende con dos aciertos. El examen puede repetir algunas para que avances.</li>
+          <li>Si abandonas un examen, no se guarda ni cambia tu progreso.</li>
+          <li>La explicación aparece después de contestar.</li>
+        </ul>
+      </aside>
+      <section class="panel">
+        <h2>¿Quién va a estudiar?</h2>
+        <p class="muted">Elige tu nombre para continuar con tu historial. El avance de cada estudiante está separado.</p>
+        <div id="student-list" class="stack"></div>
+        <p id="student-empty" class="muted">Todavía no hay estudiantes. Escribe un nombre para comenzar.</p>
+        <form id="register-form" class="card">
+          <h3>Entra con tu nombre</h3>
+          <input id="register-name" name="name" maxlength="60" placeholder="Escribe tu nombre" autocomplete="name" required>
+          <p id="register-error" class="error" hidden></p>
+          <button class="primary" type="submit">Comenzar</button>
+        </form>
+      </section>
+    </section>
+
+    <section id="portal" hidden>
+      <header class="bar">
+        <div class="who">
+          <span id="avatar" class="avatar"></span>
+          <div>
+            <h2 id="greeting"></h2>
+            <p id="summary" class="muted"></p>
+          </div>
+        </div>
+        <button id="change-student" class="secondary" type="button">Cambiar estudiante</button>
+      </header>
+      <div class="body">
+        <p id="banner" class="banner" hidden></p>
+        <div>
+          <h2>Materias</h2>
+          <p class="muted">Elige una materia para practicar. Cada examen tiene hasta 15 preguntas.</p>
+        </div>
+        <div id="subject-list" class="cards"></div>
+      </div>
+    </section>
+
+    <section id="subject" hidden>
+      <header class="bar">
+        <button id="back-portal" class="secondary" type="button">Volver</button>
+        <h2 id="subject-name"></h2>
+      </header>
+      <div class="body narrow">
+        <p id="subject-banner" class="banner bad" hidden></p>
+        <article class="card">
+          <p id="subject-description" class="muted"></p>
+          <p id="subject-percent" class="hero"></p>
+          <div class="track"><span id="subject-bar"></span></div>
+          <p class="muted">Hasta 15 preguntas: 10 del avance y 5 repasos. En el primero, algunas nuevas se repiten para poder acertarlas dos veces.</p>
+          <div class="stats">
+            <div><strong id="stat-learned">0</strong><span>Aprendidas</span></div>
+            <div><strong id="stat-pending">0</strong><span>Pendientes</span></div>
+            <div><strong id="stat-exams">0</strong><span>Exámenes</span></div>
+          </div>
+          <button id="start-exam" class="primary" type="button">Comenzar examen</button>
+        </article>
+      </div>
+    </section>
+
+    <section id="exam" hidden>
+      <header class="bar">
+        <h2 id="exam-subject"></h2>
+        <button id="abandon" class="danger" type="button">Abandonar examen</button>
+      </header>
+      <div class="body narrow">
+        <p id="exam-count" class="muted"></p>
+        <div class="track"><span id="exam-bar"></span></div>
+        <p id="exam-review" class="review" hidden>Repaso: esta pregunta se repite para que puedas acertarla otra vez.</p>
+        <h2 id="exam-prompt"></h2>
+        <p class="muted">Elige una respuesta. Enseguida verás si fue correcta.</p>
+        <div id="options" class="stack"></div>
+        <p id="feedback" hidden></p>
+        <p id="explanation" class="explanation" hidden></p>
+      </div>
+      <footer class="bar foot">
+        <p id="exam-error" class="error" hidden></p>
+        <p class="muted">Si cierras antes de la última pregunta, este examen no se guarda.</p>
+        <button id="next" class="primary" type="button" disabled>Siguiente pregunta</button>
+      </footer>
+    </section>
+
+    <section id="result" hidden>
+      <div class="body narrow result">
+        <p id="score" class="hero"></p>
+        <p id="result-summary" class="muted"></p>
+        <div class="stats">
+          <div><strong id="result-correct">0</strong><span>Correctas</span></div>
+          <div><strong id="result-incorrect">0</strong><span>Incorrectas</span></div>
+          <div><strong id="result-learned">0</strong><span>Aprendidas ahora</span></div>
+        </div>
+        <p id="result-learned-line"></p>
+        <p id="result-progress"></p>
+        <p class="muted">Este examen ya quedó guardado, con su calificación y tu progreso.</p>
+        <div class="track"><span id="result-bar"></span></div>
+        <div class="actions">
+          <button id="result-menu" class="secondary" type="button">Menú principal</button>
+          <button id="result-back" class="secondary" type="button">Volver a la materia</button>
+          <button id="result-again" class="primary" type="button">Otro examen</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="leave">
+    <form method="dialog">
+      <h2>Salir del examen</h2>
+      <p>Si sales ahora, este examen no se guardará y las respuestas no contarán.</p>
+      <div class="actions">
+        <button class="primary" value="stay" type="submit">Seguir en el examen</button>
+        <button id="leave-confirm" class="danger" type="button">Salir sin guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
