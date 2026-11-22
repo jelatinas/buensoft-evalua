@@ -7,6 +7,12 @@ let subjectId = null;
 let exam = null;
 let cursor = 0;
 let choosing = false;
+let pendingRemoval = null;
+
+const STATUS_ICONS = {
+  pending: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.6V8.2l2.4 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  progress: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.4 12.6V9.2M8 12.6V5.6M13.6 12.6V3.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'
+};
 
 function config() {
   const value = window.EVALUA || {};
@@ -62,17 +68,65 @@ function show(id) {
 }
 
 function initials(name) {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
+  const parts = name.split(/\s+/).filter((part) => /\p{L}/u.test(part));
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function formatPercent(value) {
+  const number = Math.round(Number(value) * 10) / 10;
+  if (!Number.isFinite(number)) return "0%";
+  if (Math.abs(number - Math.round(number)) < 0.05) return `${Math.round(number)}%`;
+  return `${number.toFixed(1)}%`;
 }
 
 function percentLabel(learned, total) {
-  if (!total || !learned) return "0 %";
-  const value = Math.min(100, (learned / total) * 100);
-  return `${value.toLocaleString("es-MX", { maximumFractionDigits: 1 })} %`;
+  if (!total || learned <= 0) return "0%";
+  return formatPercent(Math.min(100, (learned / total) * 100));
+}
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Buenos días";
+  if (hour < 19) return "Buenas tardes";
+  return "Buenas noches";
+}
+
+function setStatus(status, kind, label) {
+  status.hidden = false;
+  status.className = `status ${kind}`;
+  status.innerHTML = `${STATUS_ICONS[kind] || ""}<span></span>`;
+  status.querySelector("span").textContent = label;
+}
+
+function equalizeSubjectCards() {
+  const portal = document.getElementById("portal");
+  const cards = [...document.querySelectorAll("#subject-list .subject")];
+  const add = document.querySelector("#subject-list .add-subject");
+  if (!portal || portal.hidden) return;
+  for (const card of cards) card.style.minHeight = "";
+  if (add) add.style.minHeight = "";
+  if (!cards.length) return;
+  const tallest = Math.max(...cards.map((card) => card.getBoundingClientRect().height));
+  if (!tallest) return;
+  const height = `${Math.ceil(tallest)}px`;
+  for (const card of cards) card.style.minHeight = height;
+  if (add) add.style.minHeight = height;
+}
+
+function showBanner(text, kind) {
+  const node = document.getElementById("banner");
+  node.hidden = !text;
+  node.textContent = text || "";
+  node.className = kind === "bad" ? "banner bad" : "banner";
+}
+
+function friendlyError(error) {
+  if (/could not find the function|schema cache|PGRST202/i.test(error.message || "")) {
+    return "Falta aplicar la actualización de la base. Pega online/007_portal_ui.sql en el editor SQL de Supabase y vuelve a cargar.";
+  }
+  return error.message;
 }
 
 function saveStudent(value) {
@@ -132,35 +186,130 @@ async function openStudent(value) {
 async function loadPortal(message) {
   subjects = await rpc("student_progress", { p_student_id: student.id });
   document.getElementById("avatar").textContent = initials(student.name);
-  document.getElementById("greeting").textContent = student.name;
+  document.getElementById("greeting").textContent = `${greeting()}, ${student.name}`;
   const learned = subjects.reduce((sum, item) => sum + item.learned, 0);
   const total = subjects.reduce((sum, item) => sum + item.question_count, 0);
-  document.getElementById("summary").textContent =
-    `${learned} aprendidas de ${total} · ${percentLabel(learned, total)}`;
-  const banner = document.getElementById("banner");
-  banner.hidden = !message;
-  banner.textContent = message || "";
+  document.getElementById("summary").textContent = total
+    ? `Has aprendido ${learned} de ${total} preguntas · ${percentLabel(learned, total)}`
+    : "Todavía no hay preguntas aprendidas.";
+  showBanner(message);
   const list = document.getElementById("subject-list");
   list.innerHTML = "";
+  document.getElementById("subject-empty").hidden = subjects.length > 0;
   for (const item of subjects) {
+    const card = document.createElement("article");
+    card.className = "subject-card";
+    const dismiss = document.createElement("button");
+    dismiss.className = "dismiss";
+    dismiss.type = "button";
+    dismiss.setAttribute("aria-label", `Quitar ${item.name}`);
+    dismiss.textContent = "×";
+    dismiss.addEventListener("click", () => askRemove(item));
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "subject plain";
-    const pending = Math.max(0, item.question_count - item.learned);
-    const label = percentLabel(item.learned, item.question_count);
-    button.innerHTML = "<strong></strong><span class=\"muted\"></span><span class=\"status pending\"></span><div class=\"track\"><span></span></div>";
+    button.className = "subject";
+    button.innerHTML = "<span class=\"status\" hidden></span><strong></strong><span class=\"muted\"></span><span class=\"muted latest\"></span><div class=\"track\"><span></span></div>";
+    const status = button.querySelector(".status");
+    const completed = item.question_count > 0 && item.learned >= item.question_count;
+    if (completed) setStatus(status, "done", "🏆 Completada");
+    else if (item.learned > 0) setStatus(status, "progress", "En progreso");
+    else setStatus(status, "pending", "Pendiente");
+    button.querySelector("strong").textContent = item.name;
+    button.querySelector(".muted").textContent =
+      `${item.learned} de ${item.question_count} · ${percentLabel(item.learned, item.question_count)}`;
+    const latest = button.querySelector(".latest");
+    if (item.latest_questions != null) {
+      const noun = item.latest_questions === 1 ? "pregunta" : "preguntas";
+      latest.textContent =
+        `Último examen: ${item.latest_correct} correctas de ${item.latest_questions} ${noun} · ${formatPercent(item.latest_score)}`;
+    } else {
+      latest.hidden = true;
+    }
+    button.querySelector(".track span").style.width = percentLabel(item.learned, item.question_count);
+    button.addEventListener("click", () => openSubject(item.id));
+    card.append(dismiss, button);
+    list.appendChild(card);
+  }
+  const add = document.createElement("button");
+  add.className = "add-subject";
+  add.type = "button";
+  add.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 14v36M14 32h36" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/></svg><span>Agregar materia</span>';
+  add.addEventListener("click", () => {
+    openCatalog().catch((error) => showBanner(friendlyError(error), "bad"));
+  });
+  list.appendChild(add);
+  show("portal");
+  equalizeSubjectCards();
+}
+
+function askRemove(item) {
+  pendingRemoval = item;
+  const text = document.getElementById("remove-text");
+  text.textContent = item.learned > 0
+    ? `¿Quitas «${item.name}» de tu portal? Se perderá todo tu progreso en esta materia, incluidas las preguntas aprendidas y los exámenes terminados.`
+    : `¿Quitas «${item.name}» de tu portal?`;
+  document.getElementById("remove-subject").showModal();
+}
+
+function showCatalogList() {
+  document.getElementById("catalog-ai").hidden = true;
+  document.getElementById("catalog-main").hidden = false;
+  document.getElementById("ai-copied").hidden = true;
+}
+
+async function openCatalog() {
+  showCatalogList();
+  const dialog = document.getElementById("catalog");
+  const list = document.getElementById("catalog-list");
+  const error = document.getElementById("catalog-error");
+  error.hidden = true;
+  list.innerHTML = "";
+  const rows = await rpc("available_subjects", { p_student_id: student.id });
+  document.getElementById("catalog-empty").hidden = rows.length > 0;
+  for (const item of rows) {
+    const button = document.createElement("button");
+    button.className = "choice";
+    button.type = "button";
+    button.innerHTML = "<strong></strong><br><span class=\"muted\"></span>";
     button.querySelector("strong").textContent = item.name;
     button.querySelector(".muted").textContent = `${item.question_count} preguntas`;
-    button.querySelector(".status").textContent = pending === 0 && item.question_count > 0
-      ? "Completada"
-      : `${item.learned} aprendidas`;
-    if (pending === 0 && item.question_count > 0) button.querySelector(".status").className = "status done";
-    else if (item.learned > 0) button.querySelector(".status").className = "status progress";
-    button.querySelector(".track span").style.width = label;
-    button.addEventListener("click", () => openSubject(item.id));
+    button.addEventListener("click", async () => {
+      try {
+        const outcome = await rpc("place_subject", {
+          p_student_id: student.id,
+          p_subject_id: item.id
+        });
+        dialog.close();
+        await loadPortal(outcome.message);
+      } catch (exc) {
+        error.hidden = false;
+        error.textContent = friendlyError(exc);
+      }
+    });
     list.appendChild(button);
   }
-  show("portal");
+  dialog.showModal();
+}
+
+function subjectPayload(text) {
+  const trimmed = text.replace(/^\uFEFF/, "").trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start < 0 || end <= start) {
+    throw new Error("No se encontró un JSON de materia en el archivo.");
+  }
+  try {
+    const data = JSON.parse(trimmed.slice(start, end + 1));
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error("El archivo no es un JSON de materia.");
+    }
+    return data;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error("El archivo no es un JSON válido.");
+    }
+    throw error;
+  }
 }
 
 function openSubject(id) {
@@ -404,6 +553,73 @@ document.getElementById("result-back").addEventListener("click", async () => {
   await loadPortal();
   openSubject(subjectId);
 });
+document.getElementById("remove-confirm").addEventListener("click", async () => {
+  const dialog = document.getElementById("remove-subject");
+  const item = pendingRemoval;
+  dialog.close();
+  if (!item) return;
+  try {
+    const outcome = await rpc("remove_subject", {
+      p_student_id: student.id,
+      p_subject_id: item.id
+    });
+    await loadPortal(outcome.message);
+  } catch (error) {
+    showBanner(friendlyError(error), "bad");
+  }
+});
+
+document.getElementById("catalog-upload-button").addEventListener("click", () => {
+  document.getElementById("catalog-upload").click();
+});
+
+document.getElementById("catalog-upload").addEventListener("change", async (event) => {
+  const input = event.target;
+  const file = input.files && input.files[0];
+  input.value = "";
+  if (!file) return;
+  const error = document.getElementById("catalog-error");
+  error.hidden = true;
+  if (file.size > 20 * 1024 * 1024) {
+    error.hidden = false;
+    error.textContent = "El archivo supera el tamaño máximo de 20 MB.";
+    return;
+  }
+  try {
+    const payload = subjectPayload(await file.text());
+    const outcome = await rpc("import_subject", {
+      p_student_id: student.id,
+      p_payload: payload
+    });
+    document.getElementById("catalog").close();
+    await loadPortal(outcome.message);
+  } catch (exc) {
+    error.hidden = false;
+    error.textContent = friendlyError(exc);
+  }
+});
+
+document.getElementById("ai-help-open").addEventListener("click", () => {
+  document.getElementById("catalog-main").hidden = true;
+  document.getElementById("catalog-ai").hidden = false;
+});
+
+document.getElementById("ai-back").addEventListener("click", () => {
+  showCatalogList();
+});
+
+document.getElementById("ai-copy").addEventListener("click", async () => {
+  const prompt = document.getElementById("ai-prompt").value;
+  try {
+    await navigator.clipboard.writeText(prompt);
+    document.getElementById("ai-copied").hidden = false;
+  } catch (error) {
+    document.getElementById("ai-prompt").select();
+  }
+});
+
+window.addEventListener("resize", equalizeSubjectCards);
+
 document.getElementById("result-again").addEventListener("click", () => {
   startExam().catch(async (error) => {
     await loadPortal();

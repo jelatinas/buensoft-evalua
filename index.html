@@ -46,11 +46,14 @@
       </header>
       <div class="body">
         <p id="banner" class="banner" hidden></p>
-        <div>
-          <h2>Materias</h2>
-          <p class="muted">Elige una materia para practicar. Cada examen tiene hasta 15 preguntas.</p>
+        <div class="title-row">
+          <div>
+            <h2>Tus materias</h2>
+            <p class="muted">Pulsa el cuadro Agregar materia para elegir una clase o subir un archivo .json o .md.</p>
+          </div>
         </div>
         <div id="subject-list" class="cards"></div>
+        <p id="subject-empty" class="muted" hidden>Todavía no tienes materias. Pulsa Agregar materia para ver las disponibles.</p>
       </div>
     </section>
 
@@ -119,6 +122,91 @@
       </div>
     </section>
   </main>
+
+  <dialog id="catalog">
+    <form method="dialog">
+      <div id="catalog-main">
+        <h2>Materias disponibles</h2>
+        <p class="muted">Elige una materia que ya está disponible, o sube un archivo .json o .md. Si el archivo no es válido, no se guarda.</p>
+        <button id="catalog-upload-button" class="secondary" type="button">Subir archivo .json o .md</button>
+        <input id="catalog-upload" type="file" accept=".json,.md,.markdown,application/json,text/markdown" hidden>
+        <button id="ai-help-open" class="link" type="button">Instrucciones para pedirle a tu AI para crear una materia que te interese</button>
+        <div id="catalog-list" class="stack"></div>
+        <p id="catalog-empty" class="muted" hidden>No hay otras materias disponibles. Puedes subir un archivo .json o .md.</p>
+        <p id="catalog-error" class="error" hidden></p>
+        <div class="actions">
+          <button id="catalog-close" class="secondary" value="cancel" type="submit">Cerrar</button>
+        </div>
+      </div>
+      <div id="catalog-ai" hidden>
+        <h2>Instrucciones para tu AI</h2>
+        <p class="muted">Copia este texto, pégalo en tu AI y cambia la X por el tema que quieras. Después sube el archivo .json.</p>
+        <textarea id="ai-prompt" readonly>Crea un archivo JSON válido, listo para descargar y guardar como .json, sin texto fuera del archivo y sin bloques de código. No me muestres las preguntas, solo genera el archivo para su descarga.
+
+Tema: X
+Nombre de la clase: X
+Idioma de las preguntas: español.
+
+El archivo debe tener exactamente esta forma:
+{
+  "titulo_libro": "X",
+  "descripcion": "Una frase breve del tema.",
+  "preguntas": [ ... 100 objetos ... ]
+}
+Dentro de "preguntas" pon exactamente 100 preguntas, sin repetir ningún enunciado:
+- 50 de opción múltiple, con "tipo": "opcion_multiple"
+- 50 de verdadero o falso, con "tipo": "verdadero_falso"
+Cada pregunta de opción múltiple debe verse así:
+{
+  "id": "OM01",
+  "tipo": "opcion_multiple",
+  "pregunta": "Enunciado",
+  "opciones": ["respuesta correcta", "distractora 1", "distractora 2", "distractora 3"],
+  "explicacion": "Una o dos frases que explican por qué la primera opción es la correcta."
+}
+Cada pregunta de verdadero o falso debe verse así, si el enunciado es verdadero:
+{
+  "id": "VF01",
+  "tipo": "verdadero_falso",
+  "pregunta": "Enunciado",
+  "opciones": ["Verdadero", "Falso"],
+  "explicacion": "Una o dos frases que explican por qué el enunciado es verdadero."
+}
+Si el enunciado es falso, el orden es al revés:
+{
+  "id": "VF02",
+  "tipo": "verdadero_falso",
+  "pregunta": "Enunciado",
+  "opciones": ["Falso", "Verdadero"],
+  "explicacion": "Una o dos frases que explican por qué el enunciado es falso."
+}
+Reglas obligatorias:
+- La primera posición de "opciones" es la única respuesta correcta. No marques la correcta con asterisco, ni con "correcta", ni en otro campo.
+- Opción múltiple: exactamente 4 opciones, todas distintas, y las 3 incorrectas deben ser creíbles.
+- Verdadero o falso: exactamente las palabras "Verdadero" y "Falso". No uses True, False, V o F.
+- Cada pregunta incluye "explicacion": la descripción de por qué la respuesta es correcta. Va dentro del JSON, en español, y no repite el enunciado.
+- Los id van de OM01 a OM50 y de VF01 a VF50. No repitas id ni enunciados.
+- No uses comentarios. Entrega solo el JSON.
+</textarea>
+        <p id="ai-copied" class="muted" hidden>Texto copiado. Pégalo en tu AI y cambia la X por el tema.</p>
+        <div class="actions">
+          <button id="ai-copy" class="primary" type="button">Copiar texto</button>
+          <button id="ai-back" class="secondary" type="button">Volver</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="remove-subject">
+    <form method="dialog">
+      <h2>Quitar materia</h2>
+      <p id="remove-text"></p>
+      <div class="actions">
+        <button class="secondary" value="cancel" type="submit">Cancelar</button>
+        <button id="remove-confirm" class="danger" type="button">Quitar materia</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="leave">
     <form method="dialog">

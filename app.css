@@ -226,6 +226,12 @@ dialog {
 }
 dialog::backdrop { background: rgba(28, 36, 28, 0.45); }
 dialog form { display: grid; gap: 12px; }
+dialog textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  font: inherit;
+}
 button.link {
   justify-self: start;
   padding: 0;
