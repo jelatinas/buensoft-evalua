@@ -42,13 +42,6 @@ async function readError(response) {
   return message || "No se pudo completar la operación.";
 }
 
-async function rest(path) {
-  const { url } = config();
-  const response = await fetch(`${url}/rest/v1/${path}`, { headers: headers() });
-  if (!response.ok) throw new Error(await readError(response));
-  return response.json();
-}
-
 async function rpc(name, body) {
   const { url } = config();
   const response = await fetch(`${url}/rest/v1/rpc/${name}`, {
@@ -154,22 +147,27 @@ function saveExamPlace() {
   }));
 }
 
-async function loadHome() {
-  const rows = await rest("students?select=id,name&order=name.asc");
-  const list = document.getElementById("student-list");
-  list.innerHTML = "";
-  document.getElementById("student-empty").hidden = rows.length > 0;
-  for (const row of rows) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "student";
-    button.innerHTML = "<span class=\"avatar\"></span><span></span>";
-    button.querySelector(".avatar").textContent = initials(row.name);
-    button.querySelector("span:last-child").textContent = row.name;
-    button.addEventListener("click", () => openStudent(row).catch(showRegisterError));
-    list.appendChild(button);
-  }
+function loadHome() {
   show("home");
+}
+
+async function enterFromWorkspace(code) {
+  const response = await fetch("https://buensoft.com/workspace/api/evalua.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ action: "redeem", code })
+  });
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch (error) {
+    payload = {};
+  }
+  if (!response.ok || !payload.name) {
+    throw new Error(payload.error || "No se pudo entrar con la cuenta del workspace.");
+  }
+  const created = await rpc("enter_student", { p_name: payload.name });
+  await openStudent(created);
 }
 
 function showRegisterError(error) {
@@ -515,25 +513,14 @@ async function restoreExam() {
   return true;
 }
 
-document.getElementById("register-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
+document.getElementById("change-student").addEventListener("click", () => {
+  student = null;
+  exam = null;
+  sessionStorage.removeItem(STUDENT_KEY);
+  sessionStorage.removeItem(EXAM_KEY);
   const error = document.getElementById("register-error");
   error.hidden = true;
-  try {
-    const created = await rpc("enter_student", {
-      p_name: document.getElementById("register-name").value
-    });
-    document.getElementById("register-name").value = "";
-    await openStudent(created);
-  } catch (exc) {
-    showRegisterError(exc);
-  }
-});
-
-document.getElementById("change-student").addEventListener("click", async () => {
-  student = null;
-  sessionStorage.removeItem(STUDENT_KEY);
-  await loadHome();
+  loadHome();
 });
 
 document.getElementById("back-portal").addEventListener("click", () => {
@@ -676,6 +663,21 @@ async function boot() {
     document.getElementById("register-error").textContent = error.message;
     show("home");
     return;
+  }
+  const params = new URLSearchParams(location.search);
+  const code = params.get("entrada") || "";
+  if (/^[a-f0-9]{32}$/.test(code)) {
+    params.delete("entrada");
+    const query = params.toString();
+    history.replaceState(null, "", location.pathname + (query ? `?${query}` : "") + location.hash);
+    try {
+      await enterFromWorkspace(code);
+      return;
+    } catch (error) {
+      showRegisterError(error);
+      show("home");
+      return;
+    }
   }
   student = loadStoredStudent();
   if (student) {

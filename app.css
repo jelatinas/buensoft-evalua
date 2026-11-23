@@ -49,6 +49,7 @@ input {
   border: none;
 }
 .primary { background: #2f6a34; color: white; }
+a.primary { display: inline-flex; width: fit-content; text-decoration: none; }
 .secondary { background: white; color: #1d4d22; border: 1px solid #d5e3c8; }
 .danger { background: #fdecea; color: #b42318; }
 .primary:disabled, .secondary:disabled { opacity: 0.55; cursor: default; }
