@@ -667,7 +667,7 @@ async function boot() {
   }
   const params = new URLSearchParams(location.search);
   const code = params.get("entrada") || "";
-  if (/^[a-f0-9]{32}$/.test(code)) {
+  if (/^[A-Za-z0-9_-]{20,}$/.test(code)) {
     params.delete("entrada");
     const query = params.toString();
     history.replaceState(null, "", location.pathname + (query ? `?${query}` : "") + location.hash);

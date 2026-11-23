@@ -6,7 +6,7 @@
   <title>Buensoft Evalua</title>
   <script>
     (function () {
-      var fromWorkspace = /(?:\?|&)entrada=[a-f0-9]{32}(?:&|$)/.test(location.search);
+      var fromWorkspace = /(?:\?|&)entrada=[A-Za-z0-9_-]{20,}(?:&|$)/.test(location.search);
       var returning = false;
       try { returning = !!sessionStorage.getItem("evalua-student"); } catch (error) { returning = false; }
       if (fromWorkspace || returning) document.documentElement.classList.add("is-opening");
