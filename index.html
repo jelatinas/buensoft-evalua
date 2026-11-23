@@ -4,6 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Buensoft Evalua</title>
+  <script>
+    (function () {
+      var fromWorkspace = /(?:\?|&)entrada=[a-f0-9]{32}(?:&|$)/.test(location.search);
+      var returning = false;
+      try { returning = !!sessionStorage.getItem("evalua-student"); } catch (error) { returning = false; }
+      if (fromWorkspace || returning) document.documentElement.classList.add("is-opening");
+    })();
+  </script>
+  <style>
+    html.is-opening #home { display: none; }
+    #opening { display: none; }
+    html.is-opening #opening { display: block; }
+  </style>
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
@@ -28,6 +41,10 @@
         <p id="register-error" class="error" hidden></p>
         <a class="primary" href="https://buensoft.com/workspace/?entrada=evalua">Entrar con Google</a>
       </section>
+    </section>
+
+    <section id="opening">
+      <p class="opening">Abriendo tus materias…</p>
     </section>
 
     <section id="portal" hidden>

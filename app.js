@@ -55,6 +55,7 @@ async function rpc(name, body) {
 }
 
 function show(id) {
+  if (id !== "opening") document.documentElement.classList.remove("is-opening");
   for (const section of document.querySelectorAll("#app > section")) {
     section.hidden = section.id !== id;
   }
@@ -674,6 +675,7 @@ async function boot() {
       await enterFromWorkspace(code);
       return;
     } catch (error) {
+      document.documentElement.classList.remove("is-opening");
       showRegisterError(error);
       show("home");
       return;
@@ -688,8 +690,10 @@ async function boot() {
     } catch (error) {
       student = null;
       sessionStorage.removeItem(STUDENT_KEY);
+      document.documentElement.classList.remove("is-opening");
     }
   }
+  document.documentElement.classList.remove("is-opening");
   await loadHome();
 }
 
