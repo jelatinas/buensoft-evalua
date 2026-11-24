@@ -1,7 +1,7 @@
 const STUDENT_KEY = "evalua-student";
 const EXAM_KEY = "evalua-exam";
 /** Versión semántica: patch 0–9, luego sube el minor (1.0.9 → 1.1.0). */
-const APP_VERSION = "1.0.3";
+const APP_VERSION = "1.0.4";
 
 let student = null;
 let subjects = [];
@@ -328,40 +328,29 @@ function subjectPayload(text) {
   }
 }
 
-async function openSubject(id) {
-  subjectId = id;
-  const item = subjects.find((subject) => subject.id === id);
-  if (!item) return;
-  document.getElementById("subject-name").textContent = item.name;
-  document.getElementById("subject-description").textContent = item.description || "";
-  const label = percentLabel(item.learned, item.question_count);
-  document.getElementById("subject-percent").textContent = label;
-  document.getElementById("subject-bar").style.width = label;
-  document.getElementById("stat-learned").textContent = item.learned;
-  document.getElementById("stat-pending").textContent = Math.max(0, item.question_count - item.learned);
-  document.getElementById("stat-exams").textContent = item.exam_count;
-  const banner = document.getElementById("subject-banner");
-  banner.hidden = true;
-  const start = document.getElementById("start-exam");
-  const finished = isSubjectCompleted(item);
-  start.disabled = finished;
-  start.textContent = finished ? "Materia completada" : "Comenzar examen";
-  const answersBlock = document.getElementById("answers-block");
-  const answers = document.getElementById("answers");
-  answers.innerHTML = "";
-  answersBlock.hidden = true;
-  show("subject");
-  if (!finished) return;
-  try {
-    const rows = await rpc("subject_answers", {
-      p_student_id: student.id,
-      p_subject_id: id
-    });
-    renderAnswers(Array.isArray(rows) ? rows : []);
-  } catch (error) {
-    banner.hidden = false;
-    banner.className = "banner bad";
-    banner.textContent = friendlyError(error);
+function formatExamWhen(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value || "");
+  return date.toLocaleString("es-MX", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+}
+
+function renderHistory(rows) {
+  const history = document.getElementById("history");
+  history.innerHTML = "";
+  if (!rows.length) {
+    history.innerHTML = "<p class=\"muted\">Todavía no hay exámenes terminados.</p>";
+    return;
+  }
+  for (const item of rows) {
+    const row = document.createElement("article");
+    row.className = "history";
+    const score = formatPercent(item.score);
+    row.textContent =
+      `${formatExamWhen(item.completed_at)} · ${item.correct_count} correctas · ${item.incorrect_count} incorrectas · ${item.question_count} preguntas · ${score}`;
+    history.appendChild(row);
   }
 }
 
@@ -370,6 +359,12 @@ function renderAnswers(rows) {
   const answers = document.getElementById("answers");
   answers.innerHTML = "";
   answersBlock.hidden = rows.length === 0;
+  const showBtn = document.getElementById("show-answers");
+  if (showBtn) {
+    showBtn.textContent = answersBlock.hidden
+      ? "Mostrar preguntas y respuestas"
+      : "Ocultar preguntas y respuestas";
+  }
   rows.forEach((item, index) => {
     const row = document.createElement("article");
     row.className = "answer";
@@ -385,6 +380,53 @@ function renderAnswers(rows) {
     row.append(prompt, answer);
     answers.appendChild(row);
   });
+}
+
+function hideAnswers() {
+  const answersBlock = document.getElementById("answers-block");
+  const answers = document.getElementById("answers");
+  answers.innerHTML = "";
+  answersBlock.hidden = true;
+  const showBtn = document.getElementById("show-answers");
+  if (showBtn) showBtn.textContent = "Mostrar preguntas y respuestas";
+}
+
+async function openSubject(id) {
+  subjectId = id;
+  const item = subjects.find((subject) => subject.id === id);
+  if (!item) return;
+  document.getElementById("subject-name").textContent = item.name;
+  document.getElementById("subject-description").textContent = item.description || "";
+  const label = percentLabel(item.learned, item.question_count);
+  document.getElementById("subject-percent").textContent = label;
+  document.getElementById("subject-bar").style.width = label;
+  document.getElementById("stat-learned").textContent = item.learned;
+  document.getElementById("stat-pending").textContent = Math.max(0, item.question_count - item.learned);
+  document.getElementById("stat-exams").textContent = item.exam_count;
+  const banner = document.getElementById("subject-banner");
+  banner.hidden = true;
+  banner.className = "banner bad";
+  const finished = isSubjectCompleted(item);
+  document.getElementById("subject-actions-progress").hidden = finished;
+  document.getElementById("subject-actions-completed").hidden = !finished;
+  const start = document.getElementById("start-exam");
+  start.disabled = false;
+  start.textContent = "Comenzar examen";
+  hideAnswers();
+  document.getElementById("history").innerHTML = "<p class=\"muted\">Cargando historial…</p>";
+  show("subject");
+  try {
+    const rows = await rpc("subject_exam_history", {
+      p_student_id: student.id,
+      p_subject_id: id
+    });
+    renderHistory(Array.isArray(rows) ? rows : []);
+  } catch (error) {
+    document.getElementById("history").innerHTML =
+      "<p class=\"muted\">No se pudo cargar el historial de exámenes.</p>";
+    banner.hidden = false;
+    banner.textContent = friendlyError(error);
+  }
 }
 
 function renderQuestion() {
@@ -467,14 +509,22 @@ async function choose(text, button) {
   }
 }
 
-async function startExam() {
-  const data = await rpc("start_exam", {
+async function startExam(mode = "progress") {
+  const data = await rpc("start_exam_mode", {
     p_student_id: student.id,
-    p_subject_id: subjectId
+    p_subject_id: subjectId,
+    p_mode: mode
   });
   exam = data;
   cursor = 0;
   renderQuestion();
+}
+
+function showSubjectError(error) {
+  const banner = document.getElementById("subject-banner");
+  banner.hidden = false;
+  banner.className = "banner bad";
+  banner.textContent = friendlyError(error);
 }
 
 async function finishExam() {
@@ -551,11 +601,59 @@ document.getElementById("back-portal").addEventListener("click", () => {
 });
 
 document.getElementById("start-exam").addEventListener("click", () => {
-  startExam().catch((error) => {
-    const banner = document.getElementById("subject-banner");
-    banner.hidden = false;
-    banner.textContent = error.message;
-  });
+  startExam("progress").catch(showSubjectError);
+});
+
+document.getElementById("show-answers").addEventListener("click", async () => {
+  const answersBlock = document.getElementById("answers-block");
+  if (!answersBlock.hidden) {
+    hideAnswers();
+    return;
+  }
+  try {
+    const rows = await rpc("subject_answers", {
+      p_student_id: student.id,
+      p_subject_id: subjectId
+    });
+    renderAnswers(Array.isArray(rows) ? rows : []);
+    if (!Array.isArray(rows) || rows.length === 0) {
+      answersBlock.hidden = false;
+      document.getElementById("answers").innerHTML =
+        "<p class=\"muted\">No hay preguntas para mostrar.</p>";
+      document.getElementById("show-answers").textContent = "Ocultar preguntas y respuestas";
+    }
+  } catch (error) {
+    showSubjectError(error);
+  }
+});
+
+document.getElementById("exam-all").addEventListener("click", () => {
+  startExam("all").catch(showSubjectError);
+});
+
+document.getElementById("exam-reset").addEventListener("click", () => {
+  const item = subjects.find((subject) => subject.id === subjectId);
+  const text = document.getElementById("reset-text");
+  text.textContent = item
+    ? `¿Reinicias «${item.name}»? Se borrará el progreso y el historial de exámenes. No se puede deshacer.`
+    : "¿Reinicias esta materia? Se borrará el progreso y el historial de exámenes. No se puede deshacer.";
+  document.getElementById("reset-subject").showModal();
+});
+
+document.getElementById("reset-confirm").addEventListener("click", async () => {
+  const dialog = document.getElementById("reset-subject");
+  dialog.close();
+  if (!subjectId) return;
+  try {
+    const outcome = await rpc("reset_subject", {
+      p_student_id: student.id,
+      p_subject_id: subjectId
+    });
+    await loadPortal(outcome.message);
+    await openSubject(subjectId);
+  } catch (error) {
+    showSubjectError(error);
+  }
 });
 
 document.getElementById("next").addEventListener("click", () => {

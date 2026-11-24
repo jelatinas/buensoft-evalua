@@ -209,8 +209,22 @@ a.primary { display: inline-flex; width: fit-content; text-decoration: none; }
 .status.pending { background: #d7e6f5; color: #1c4e7a; }
 .status.progress { background: #f8e3cc; color: #8a4b16; }
 .status.done { background: #1b4332; color: #f6f3ea; }
-#answers-block { display: grid; gap: 12px; }
-#answers-block h3 { font-size: 22px; }
+#history-block, #answers-block { display: grid; gap: 12px; }
+#answers-block[hidden] { display: none !important; }
+#history-block h3, #answers-block h3 { font-size: 22px; }
+.completed-actions {
+  display: grid;
+  gap: 10px;
+}
+.completed-actions .primary,
+.completed-actions .secondary,
+.completed-actions .danger {
+  width: 100%;
+}
+#subject-actions-progress {
+  display: grid;
+  gap: 12px;
+}
 .answer {
   display: grid;
   gap: 6px;
