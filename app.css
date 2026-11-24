@@ -223,6 +223,34 @@ a.primary { display: inline-flex; width: fit-content; text-decoration: none; }
 .hero { font-size: 48px; font-weight: 700; color: #1d4d22; }
 .track { height: 10px; background: #e4dfd2; border-radius: 6px; overflow: hidden; }
 .track span { display: block; height: 100%; background: #2f6a34; width: 0; }
+.result-progress-block {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #f7f8f4;
+  border: 1px solid #e4dfd2;
+  border-radius: 16px;
+}
+.result-progress-head {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.result-progress-head p {
+  margin: 0;
+  color: #243024;
+  font-weight: 600;
+  line-height: 1.35;
+}
+#result-percent {
+  flex: none;
+  color: #1d4d22;
+  font-size: 22px;
+  font-weight: 700;
+}
+.result-track { height: 14px; border-radius: 8px; background: #e4dfd2; }
+.result-track span { background: #2f6a34; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .stats div { background: #f7f8f4; border-radius: 16px; padding: 14px; display: grid; }
 .stats span { color: #5d675c; }

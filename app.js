@@ -1,7 +1,7 @@
 const STUDENT_KEY = "evalua-student";
 const EXAM_KEY = "evalua-exam";
 /** Versión semántica: patch 0–9, luego sube el minor (1.0.9 → 1.1.0). */
-const APP_VERSION = "1.0.2";
+const APP_VERSION = "1.0.3";
 
 let student = null;
 let subjects = [];
@@ -499,10 +499,12 @@ async function finishExam() {
   } else {
     learned.textContent = `Aprendiste ${result.learned_now} preguntas en este examen. Ya no volverán a salir.`;
   }
-  const label = `${Number(result.percent).toLocaleString("es-MX", { maximumFractionDigits: 1 })} %`;
+  const percent = Math.max(0, Math.min(100, Number(result.percent) || 0));
+  const label = `${percent.toLocaleString("es-MX", { maximumFractionDigits: 1 })}%`;
   document.getElementById("result-progress").textContent =
-    `Progreso de ${result.subject_name}: ${result.learned} de ${result.total} · ${label}`;
-  document.getElementById("result-bar").style.width = label;
+    `Progreso total de ${result.subject_name}: ${result.learned} de ${result.total}`;
+  document.getElementById("result-percent").textContent = label;
+  document.getElementById("result-bar").style.width = `${percent}%`;
   const again = document.getElementById("result-again");
   const completed = result.total > 0 && result.learned >= result.total;
   again.disabled = completed;
