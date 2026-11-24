@@ -103,8 +103,36 @@ a.primary { display: inline-flex; width: fit-content; text-decoration: none; }
   gap: 16px;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
 }
-.who { display: flex; gap: 12px; align-items: center; }
+.app-lockup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.app-lockup img {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex: none;
+}
+.app-lockup strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.app-lockup .ver {
+  display: block;
+  margin-top: 2px;
+  color: #6d7b6a;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.who { display: flex; gap: 12px; align-items: center; min-width: 0; margin-left: auto; }
 .body { padding: 22px; display: grid; gap: 14px; }
 .narrow { max-width: 820px; margin: 0 auto; width: 100%; }
 .title-row { display: flex; gap: 16px; justify-content: space-between; align-items: center; }
