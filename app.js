@@ -1,7 +1,7 @@
 const STUDENT_KEY = "evalua-student";
 const EXAM_KEY = "evalua-exam";
 /** Versión semántica: patch 0–9, luego sube el minor (1.0.9 → 1.1.0). */
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.0.1";
 
 let student = null;
 let subjects = [];

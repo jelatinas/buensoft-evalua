@@ -233,15 +233,29 @@ a.primary { display: inline-flex; width: fit-content; text-decoration: none; }
 #feedback.ok { color: #1d4d22; font-weight: 700; font-size: 18px; }
 #feedback.bad { color: #b42318; font-weight: 700; font-size: 18px; }
 .explanation {
-  margin: 0;
+  position: relative;
+  margin: 4px 0 0;
   padding: 14px 16px;
-  color: #243024;
-  background: #f7f8f4;
-  border: 1px solid #e4dfd2;
-  border-radius: 14px;
+  color: #111;
+  background: #ffe566;
+  border: 1px solid #e6b800;
+  border-radius: 12px;
   font-size: 16px;
   line-height: 1.45;
-  font-weight: 400;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(120, 90, 0, 0.18);
+}
+.explanation::before {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  background: #ffe566;
+  border-left: 1px solid #e6b800;
+  border-top: 1px solid #e6b800;
+  transform: rotate(45deg);
 }
 .result { padding-top: 48px; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; }
