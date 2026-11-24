@@ -1,5 +1,7 @@
 const STUDENT_KEY = "evalua-student";
 const EXAM_KEY = "evalua-exam";
+/** Versión semántica: patch 0–9, luego sube el minor (1.0.9 → 1.1.0). */
+const APP_VERSION = "1.0.0";
 
 let student = null;
 let subjects = [];
@@ -671,7 +673,15 @@ document.getElementById("result-again").addEventListener("click", () => {
   });
 });
 
+function applyAppVersion() {
+  document.title = `Buensoft Evalua ${APP_VERSION}`;
+  for (const node of document.querySelectorAll("[data-app-version]")) {
+    node.textContent = APP_VERSION;
+  }
+}
+
 async function boot() {
+  applyAppVersion();
   try {
     config();
   } catch (error) {

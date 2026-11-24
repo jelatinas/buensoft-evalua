@@ -33,7 +33,15 @@ h1, h2, h3, p { margin: 0; }
   margin-bottom: 18px;
 }
 .brand h1 { font-size: 34px; }
+.brand .ver {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
 .brand p, .brand li { color: rgba(255, 255, 255, 0.92); line-height: 1.45; }
+.brand > p:not(.ver) { margin-top: 14px; }
 .brand ul { padding-left: 18px; display: grid; gap: 10px; margin-top: 22px; }
 .panel { padding: 42px 8vw 36px; display: grid; align-content: start; gap: 14px; }
 .panel h2 { font-size: 30px; }
