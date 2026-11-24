@@ -94,19 +94,60 @@ function setStatus(status, kind, label) {
   status.querySelector("span").textContent = label;
 }
 
+function isSubjectCompleted(item) {
+  return item.question_count > 0 && item.learned >= item.question_count;
+}
+
 function equalizeSubjectCards() {
   const portal = document.getElementById("portal");
-  const cards = [...document.querySelectorAll("#subject-list .subject")];
-  const add = document.querySelector("#subject-list .add-subject");
   if (!portal || portal.hidden) return;
-  for (const card of cards) card.style.minHeight = "";
-  if (add) add.style.minHeight = "";
-  if (!cards.length) return;
-  const tallest = Math.max(...cards.map((card) => card.getBoundingClientRect().height));
-  if (!tallest) return;
-  const height = `${Math.ceil(tallest)}px`;
-  for (const card of cards) card.style.minHeight = height;
-  if (add) add.style.minHeight = height;
+  for (const selector of ["#subject-list", "#completed-list"]) {
+    const cards = [...document.querySelectorAll(`${selector} .subject`)];
+    const add = document.querySelector(`${selector} .add-subject`);
+    for (const card of cards) card.style.minHeight = "";
+    if (add) add.style.minHeight = "";
+    if (!cards.length) continue;
+    const tallest = Math.max(...cards.map((card) => card.getBoundingClientRect().height));
+    if (!tallest) continue;
+    const height = `${Math.ceil(tallest)}px`;
+    for (const card of cards) card.style.minHeight = height;
+    if (add) add.style.minHeight = height;
+  }
+}
+
+function subjectCard(item) {
+  const card = document.createElement("article");
+  card.className = "subject-card";
+  const dismiss = document.createElement("button");
+  dismiss.className = "dismiss";
+  dismiss.type = "button";
+  dismiss.setAttribute("aria-label", `Quitar ${item.name}`);
+  dismiss.textContent = "×";
+  dismiss.addEventListener("click", () => askRemove(item));
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "subject";
+  button.innerHTML = "<span class=\"status\" hidden></span><strong></strong><span class=\"muted\"></span><span class=\"muted latest\"></span><div class=\"track\"><span></span></div>";
+  const status = button.querySelector(".status");
+  const completed = isSubjectCompleted(item);
+  if (completed) setStatus(status, "done", "🏆 Completada");
+  else if (item.learned > 0) setStatus(status, "progress", "En progreso");
+  else setStatus(status, "pending", "Pendiente");
+  button.querySelector("strong").textContent = item.name;
+  button.querySelector(".muted").textContent =
+    `${item.learned} de ${item.question_count} · ${percentLabel(item.learned, item.question_count)}`;
+  const latest = button.querySelector(".latest");
+  if (item.latest_questions != null) {
+    const noun = item.latest_questions === 1 ? "pregunta" : "preguntas";
+    latest.textContent =
+      `Último examen: ${item.latest_correct} correctas de ${item.latest_questions} ${noun} · ${formatPercent(item.latest_score)}`;
+  } else {
+    latest.hidden = true;
+  }
+  button.querySelector(".track span").style.width = percentLabel(item.learned, item.question_count);
+  button.addEventListener("click", () => openSubject(item.id));
+  card.append(dismiss, button);
+  return card;
 }
 
 function showBanner(text, kind) {
@@ -192,43 +233,12 @@ async function loadPortal(message) {
     ? `Has aprendido ${learned} de ${total} preguntas · ${percentLabel(learned, total)}`
     : "Todavía no hay preguntas aprendidas.";
   showBanner(message);
+  const active = subjects.filter((item) => !isSubjectCompleted(item));
+  const completed = subjects.filter((item) => isSubjectCompleted(item));
   const list = document.getElementById("subject-list");
   list.innerHTML = "";
   document.getElementById("subject-empty").hidden = subjects.length > 0;
-  for (const item of subjects) {
-    const card = document.createElement("article");
-    card.className = "subject-card";
-    const dismiss = document.createElement("button");
-    dismiss.className = "dismiss";
-    dismiss.type = "button";
-    dismiss.setAttribute("aria-label", `Quitar ${item.name}`);
-    dismiss.textContent = "×";
-    dismiss.addEventListener("click", () => askRemove(item));
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "subject";
-    button.innerHTML = "<span class=\"status\" hidden></span><strong></strong><span class=\"muted\"></span><span class=\"muted latest\"></span><div class=\"track\"><span></span></div>";
-    const status = button.querySelector(".status");
-    const completed = item.question_count > 0 && item.learned >= item.question_count;
-    if (completed) setStatus(status, "done", "🏆 Completada");
-    else if (item.learned > 0) setStatus(status, "progress", "En progreso");
-    else setStatus(status, "pending", "Pendiente");
-    button.querySelector("strong").textContent = item.name;
-    button.querySelector(".muted").textContent =
-      `${item.learned} de ${item.question_count} · ${percentLabel(item.learned, item.question_count)}`;
-    const latest = button.querySelector(".latest");
-    if (item.latest_questions != null) {
-      const noun = item.latest_questions === 1 ? "pregunta" : "preguntas";
-      latest.textContent =
-        `Último examen: ${item.latest_correct} correctas de ${item.latest_questions} ${noun} · ${formatPercent(item.latest_score)}`;
-    } else {
-      latest.hidden = true;
-    }
-    button.querySelector(".track span").style.width = percentLabel(item.learned, item.question_count);
-    button.addEventListener("click", () => openSubject(item.id));
-    card.append(dismiss, button);
-    list.appendChild(card);
-  }
+  for (const item of active) list.appendChild(subjectCard(item));
   const add = document.createElement("button");
   add.className = "add-subject";
   add.type = "button";
@@ -237,6 +247,11 @@ async function loadPortal(message) {
     openCatalog().catch((error) => showBanner(friendlyError(error), "bad"));
   });
   list.appendChild(add);
+  const completedBlock = document.getElementById("completed-block");
+  const completedList = document.getElementById("completed-list");
+  completedList.innerHTML = "";
+  completedBlock.hidden = completed.length === 0;
+  for (const item of completed) completedList.appendChild(subjectCard(item));
   show("portal");
   equalizeSubjectCards();
 }
@@ -326,7 +341,7 @@ async function openSubject(id) {
   const banner = document.getElementById("subject-banner");
   banner.hidden = true;
   const start = document.getElementById("start-exam");
-  const finished = item.question_count > 0 && item.learned >= item.question_count;
+  const finished = isSubjectCompleted(item);
   start.disabled = finished;
   start.textContent = finished ? "Materia completada" : "Comenzar examen";
   const answersBlock = document.getElementById("answers-block");
