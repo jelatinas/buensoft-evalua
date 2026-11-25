@@ -372,3 +372,44 @@ button.link {
 @media (min-width: 900px) {
   .home { grid-template-columns: minmax(320px, 460px) 1fr; }
 }
+
+/* Modo espejo (solo admin buensoft@gmail.com) */
+.mirror-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 12px;
+  padding: 6px 10px;
+}
+
+.mirror-control label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mirror-control select {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: #fff;
+  color: #0f172a;
+}
+
+.mirror-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  font-weight: 600;
+}

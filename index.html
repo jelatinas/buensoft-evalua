@@ -64,9 +64,17 @@
             <p id="summary" class="muted"></p>
           </div>
         </div>
+        <div id="admin-mirror-bar" class="mirror-control" hidden>
+          <label for="mirror-select">Modo espejo</label>
+          <select id="mirror-select"></select>
+        </div>
         <button id="change-student" class="secondary" type="button">Salir</button>
       </header>
       <div class="body">
+        <div id="mirror-banner" class="mirror-banner" hidden>
+          <span id="mirror-banner-text"></span>
+          <button id="mirror-exit" class="secondary" type="button">Volver a mi portal</button>
+        </div>
         <p id="banner" class="banner" hidden></p>
         <div class="title-row">
           <div>
@@ -94,6 +102,10 @@
         <h2 id="subject-name"></h2>
       </header>
       <div class="body narrow">
+        <div id="subject-mirror-banner" class="mirror-banner" hidden>
+          <span id="subject-mirror-text"></span>
+          <button id="subject-mirror-exit" class="secondary" type="button">Volver a mi portal</button>
+        </div>
         <p id="subject-banner" class="banner bad" hidden></p>
         <article class="card">
           <p id="subject-description" class="muted"></p>

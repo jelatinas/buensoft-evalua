@@ -1,15 +1,30 @@
 const STUDENT_KEY = "evalua-student";
 const EXAM_KEY = "evalua-exam";
+const ADMIN_EMAIL = "buensoft@gmail.com";
 /** Versión semántica: patch 0–9, luego sube el minor (1.0.9 → 1.1.0). */
-const APP_VERSION = "1.0.4";
+const APP_VERSION = "1.0.5";
 
 let student = null;
+let mirrorStudent = null;
+let allStudents = [];
 let subjects = [];
 let subjectId = null;
 let exam = null;
 let cursor = 0;
 let choosing = false;
 let pendingRemoval = null;
+
+function isAdminUser() {
+  return Boolean(student && (student.isAdmin === true || String(student.email || "").toLowerCase() === ADMIN_EMAIL));
+}
+
+function isMirroring() {
+  return Boolean(isAdminUser() && mirrorStudent && mirrorStudent.id !== student.id);
+}
+
+function activeStudent() {
+  return isMirroring() ? mirrorStudent : student;
+}
 
 const STATUS_ICONS = {
   pending: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.6V8.2l2.4 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -125,6 +140,7 @@ function subjectCard(item) {
   dismiss.type = "button";
   dismiss.setAttribute("aria-label", `Quitar ${item.name}`);
   dismiss.textContent = "×";
+  dismiss.hidden = isMirroring();
   dismiss.addEventListener("click", () => askRemove(item));
   const button = document.createElement("button");
   button.type = "button";
@@ -211,7 +227,12 @@ async function enterFromWorkspace(code) {
     throw new Error(payload.error || "No se pudo entrar con la cuenta del workspace.");
   }
   const created = await rpc("enter_student", { p_name: payload.name });
-  await openStudent(created);
+  const email = String(payload.email || "").trim().toLowerCase();
+  await openStudent({
+    ...created,
+    email,
+    isAdmin: email === ADMIN_EMAIL
+  });
 }
 
 function showRegisterError(error) {
@@ -220,20 +241,88 @@ function showRegisterError(error) {
   node.textContent = error.message;
 }
 
+async function loadAdminStudents() {
+  if (!isAdminUser()) {
+    allStudents = [];
+    return;
+  }
+  try {
+    const { url } = config();
+    const response = await fetch(`${url}/rest/v1/students?select=id,name,name_key&order=name`, {
+      headers: headers()
+    });
+    if (response.ok) {
+      const rows = await response.json();
+      allStudents = Array.isArray(rows) ? rows : [];
+    }
+  } catch (error) {
+    allStudents = [];
+  }
+}
+
+function renderMirrorControls() {
+  const bar = document.getElementById("admin-mirror-bar");
+  const select = document.getElementById("mirror-select");
+  const banner = document.getElementById("mirror-banner");
+  const bannerText = document.getElementById("mirror-banner-text");
+  if (!bar || !select) return;
+  if (!isAdminUser()) {
+    bar.hidden = true;
+    if (banner) banner.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  const currentId = isMirroring() ? mirrorStudent.id : "";
+  select.innerHTML = "";
+  const ownOpt = document.createElement("option");
+  ownOpt.value = "";
+  ownOpt.textContent = `Mi portal (${student.name})`;
+  select.appendChild(ownOpt);
+  for (const item of allStudents) {
+    if (item.id === student.id) continue;
+    const opt = document.createElement("option");
+    opt.value = item.id;
+    opt.textContent = `Ver como: ${item.name}`;
+    select.appendChild(opt);
+  }
+  select.value = currentId;
+  if (banner && bannerText) {
+    banner.hidden = !isMirroring();
+    if (isMirroring()) {
+      bannerText.textContent = `👁️ Modo espejo activo — Viendo el portal de ${mirrorStudent.name} (solo lectura)`;
+    }
+  }
+}
+
 async function openStudent(value) {
-  saveStudent({ id: value.id, name: value.name });
+  mirrorStudent = null;
+  saveStudent({
+    id: value.id,
+    name: value.name,
+    email: value.email || "",
+    isAdmin: value.isAdmin === true || String(value.email || "").toLowerCase() === ADMIN_EMAIL
+  });
   await loadPortal();
 }
 
 async function loadPortal(message) {
-  subjects = await rpc("student_progress", { p_student_id: student.id });
-  document.getElementById("avatar").textContent = initials(student.name);
-  document.getElementById("greeting").textContent = `${greeting()}, ${student.name}`;
+  if (isAdminUser() && !allStudents.length) {
+    await loadAdminStudents();
+  }
+  const target = activeStudent();
+  subjects = await rpc("student_progress", { p_student_id: target.id });
+  document.getElementById("avatar").textContent = initials(target.name);
+  document.getElementById("greeting").textContent = isMirroring()
+    ? `Portal de ${target.name}`
+    : `${greeting()}, ${target.name}`;
   const learned = subjects.reduce((sum, item) => sum + item.learned, 0);
   const total = subjects.reduce((sum, item) => sum + item.question_count, 0);
   document.getElementById("summary").textContent = total
-    ? `Has aprendido ${learned} de ${total} preguntas · ${percentLabel(learned, total)}`
+    ? (isMirroring()
+      ? `${target.name} ha aprendido ${learned} de ${total} preguntas · ${percentLabel(learned, total)}`
+      : `Has aprendido ${learned} de ${total} preguntas · ${percentLabel(learned, total)}`)
     : "Todavía no hay preguntas aprendidas.";
+  renderMirrorControls();
   showBanner(message);
   const active = subjects.filter((item) => !isSubjectCompleted(item));
   const completed = subjects.filter((item) => isSubjectCompleted(item));
@@ -241,14 +330,16 @@ async function loadPortal(message) {
   list.innerHTML = "";
   document.getElementById("subject-empty").hidden = subjects.length > 0;
   for (const item of active) list.appendChild(subjectCard(item));
-  const add = document.createElement("button");
-  add.className = "add-subject";
-  add.type = "button";
-  add.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 14v36M14 32h36" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/></svg><span>Agregar materia</span>';
-  add.addEventListener("click", () => {
-    openCatalog().catch((error) => showBanner(friendlyError(error), "bad"));
-  });
-  list.appendChild(add);
+  if (!isMirroring()) {
+    const add = document.createElement("button");
+    add.className = "add-subject";
+    add.type = "button";
+    add.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 14v36M14 32h36" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/></svg><span>Agregar materia</span>';
+    add.addEventListener("click", () => {
+      openCatalog().catch((error) => showBanner(friendlyError(error), "bad"));
+    });
+    list.appendChild(add);
+  }
   const completedBlock = document.getElementById("completed-block");
   const completedList = document.getElementById("completed-list");
   completedList.innerHTML = "";
@@ -407,8 +498,17 @@ async function openSubject(id) {
   banner.hidden = true;
   banner.className = "banner bad";
   const finished = isSubjectCompleted(item);
-  document.getElementById("subject-actions-progress").hidden = finished;
-  document.getElementById("subject-actions-completed").hidden = !finished;
+  const mirroring = isMirroring();
+  const subMirrorBanner = document.getElementById("subject-mirror-banner");
+  const subMirrorText = document.getElementById("subject-mirror-text");
+  if (subMirrorBanner && subMirrorText) {
+    subMirrorBanner.hidden = !mirroring;
+    if (mirroring) {
+      subMirrorText.textContent = `👁️ Modo espejo activo — Viendo el avance de ${mirrorStudent.name} (solo lectura)`;
+    }
+  }
+  document.getElementById("subject-actions-progress").hidden = finished || mirroring;
+  document.getElementById("subject-actions-completed").hidden = !finished || mirroring;
   const start = document.getElementById("start-exam");
   start.disabled = false;
   start.textContent = "Comenzar examen";
@@ -417,7 +517,7 @@ async function openSubject(id) {
   show("subject");
   try {
     const rows = await rpc("subject_exam_history", {
-      p_student_id: student.id,
+      p_student_id: activeStudent().id,
       p_subject_id: id
     });
     renderHistory(Array.isArray(rows) ? rows : []);
@@ -762,6 +862,29 @@ document.getElementById("ai-copy").addEventListener("click", async () => {
 });
 
 window.addEventListener("resize", equalizeSubjectCards);
+
+const mirrorSelectEl = document.getElementById("mirror-select");
+if (mirrorSelectEl) {
+  mirrorSelectEl.addEventListener("change", () => {
+    const chosenId = mirrorSelectEl.value;
+    if (!chosenId) {
+      mirrorStudent = null;
+    } else {
+      mirrorStudent = allStudents.find((item) => item.id === chosenId) || null;
+    }
+    loadPortal().catch((error) => showBanner(friendlyError(error), "bad"));
+  });
+}
+
+for (const btnId of ["mirror-exit", "subject-mirror-exit"]) {
+  const btn = document.getElementById(btnId);
+  if (btn) {
+    btn.addEventListener("click", () => {
+      mirrorStudent = null;
+      loadPortal().catch((error) => showBanner(friendlyError(error), "bad"));
+    });
+  }
+}
 
 document.getElementById("result-again").addEventListener("click", () => {
   startExam().catch(async (error) => {
